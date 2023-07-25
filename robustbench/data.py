@@ -105,7 +105,7 @@ def _load_dataset(
     for i, (x, y) in enumerate(test_loader):
         x_test.append(x)
         y_test.append(y)
-        if n_examples is not None and batch_size * i >= n_examples:
+        if n_examples is not None and batch_size * i >= n_start + n_examples:
             break
     x_test_tensor = torch.cat(x_test)
     y_test_tensor = torch.cat(y_test)
@@ -179,14 +179,14 @@ def load_clean_dataset(
 
 
 CORRUPTIONS = (
-    "shot_noise", "motion_blur", "snow", "pixelate", "gaussian_noise", "defocus_blur",
-    "brightness", "fog", "zoom_blur", "frost", "glass_blur", "impulse_noise", "contrast",
-    "jpeg_compression", "elastic_transform"
+    "shot_noise", "motion_blur", "snow", "pixelate", "gaussian_noise",
+    "defocus_blur", "brightness", "fog", "zoom_blur", "frost", "glass_blur",
+    "impulse_noise", "contrast", "jpeg_compression", "elastic_transform"
 )
 
 CORRUPTIONS_3DCC = (
-    'near_focus', 'far_focus', 'bit_error', 'color_quant', 'flash', 'fog_3d', 'h265_abr',
-    'h265_crf', 'iso_noise', 'low_light', 'xy_motion_blur', 'z_motion_blur'
+    'near_focus', 'far_focus', 'bit_error', 'color_quant', 'flash', 'fog_3d',
+    'h265_abr', 'h265_crf', 'iso_noise', 'low_light', 'xy_motion_blur', 'z_motion_blur'
 )
 
 CORRUPTIONS_DICT: Dict[BenchmarkDataset, Tuple[str, ...]] = {
@@ -239,12 +239,12 @@ def load_imagenetc(
         raise ValueError(
             'The evaluation is currently possible on at most 5000 points.')
 
-    assert len(
-        corruptions
-    ) == 1, "so far only one corruption is supported (that's how this function is called in eval.py"
-    # TODO: generalize this (although this would probably require writing a function similar to
-    # `load_corruptions_cifar` or alternatively creating yet another CustomImageFolder class that
-    # fetches images from multiple corruption types at once -- perhaps this is a cleaner solution)
+    assert len(corruptions) == 1, \
+        "so far only one corruption is supported (that's how this function is called in eval.py"
+    # TODO: generalize this (although this would probably require writing a function
+    # similar to `load_corruptions_cifar` or alternatively creating yet another
+    # CustomImageFolder class that fetches images from multiple corruption types at once 
+    # -- perhaps this is a cleaner solution)
 
     data_folder_path = Path(data_dir) / CORRUPTIONS_DIR_NAMES[
         BenchmarkDataset.imagenet][ThreatModel.corruptions] / corruptions[0] / str(severity)
@@ -268,12 +268,12 @@ def load_imagenet3dcc(
         raise ValueError(
             'The evaluation is currently possible on at most 5000 points.')
 
-    assert len(
-        corruptions
-    ) == 1, "so far only one corruption is supported (that's how this function is called in eval.py"
-    # TODO: generalize this (although this would probably require writing a function similar to 
-    # `load_corruptions_cifar` or alternatively creating yet another CustomImageFolder class that
-    # fetches images from multiple corruption types at once -- perhaps this is a cleaner solution)
+    assert len(corruptions) == 1, \
+        "so far only one corruption is supported (that's how this function is called in eval.py"
+    # TODO: generalize this (although this would probably require writing a function
+    # similar to `load_corruptions_cifar` or alternatively creating yet another
+    # CustomImageFolder class that fetches images from multiple corruption types at once 
+    # -- perhaps this is a cleaner solution)
 
     data_folder_path = Path(data_dir) / CORRUPTIONS_DIR_NAMES[
         BenchmarkDataset.imagenet][ThreatModel.corruptions_3d] / corruptions[0] / str(severity)

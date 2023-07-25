@@ -32,7 +32,10 @@ DATASET_CLASSES = {
 
 
 def download_gdrive(gdrive_id, fname_save):
-    """ source: https://stackoverflow.com/questions/38511444/python-download-files-from-google-drive-using-url """
+    """ 
+    source: https://stackoverflow.com/questions/38511444/
+    python-download-files-from-google-drive-using-url
+    """
 
     def get_confirm_token(response):
         for key, value in response.cookies.items():
@@ -86,13 +89,15 @@ def add_substr_to_state_dict(state_dict, substr):
     return new_state_dict
 
 
-def load_model(model_name: str,
-               model_dir: Union[str, Path] = './models',
-               dataset: Union[str,
-                              BenchmarkDataset] = BenchmarkDataset.cifar_10,
-               threat_model: Union[str, ThreatModel] = ThreatModel.Linf,
-               custom_checkpoint: str = "",
-               norm: Optional[str] = None) -> nn.Module:
+def load_model(
+    model_name: str,
+    model_dir: Union[str, Path] = './models',
+    dataset: Union[str,
+                    BenchmarkDataset] = BenchmarkDataset.cifar_10,
+    threat_model: Union[str, ThreatModel] = ThreatModel.Linf,
+    custom_checkpoint: str = "",
+    norm: Optional[str] = None
+) -> nn.Module:
     """Loads a model from the model_zoo.
 
      The model is trained on the given ``dataset``, for the given ``threat_model``.
@@ -101,8 +106,8 @@ def load_model(model_name: str,
     :param model_dir: The base directory where the models are saved.
     :param dataset: The dataset on which the model is trained.
     :param threat_model: The threat model for which the model is trained.
-    :param norm: Deprecated argument that can be used in place of ``threat_model``. If specified, it
-      overrides ``threat_model``
+    :param norm: Deprecated argument that can be used in place of ``threat_model``.
+      If specified, it overrides ``threat_model``
 
     :return: A ready-to-used trained model.
     """
@@ -119,13 +124,14 @@ def load_model(model_name: str,
             DeprecationWarning)
 
     lower_model_name = model_name.lower().replace('-', '_')
-    timm_model_name = f"{lower_model_name}_{dataset_.value.lower()}_{threat_model_.value.lower()}"
+    timm_model_name = \
+        f"{lower_model_name}_{dataset_.value.lower()}_{threat_model_.value.lower()}"
     
     if timm.is_model(timm_model_name):
-        return timm.create_model(timm_model_name,
-                                 num_classes=DATASET_CLASSES[dataset_],
-                                 pretrained=True,
-                                 checkpoint_path=custom_checkpoint).eval()
+        return timm.create_model(
+            timm_model_name, num_classes=DATASET_CLASSES[dataset_],
+            pretrained=True, checkpoint_path=custom_checkpoint
+        ).eval()
 
     model_dir_ = Path(model_dir) / dataset_.value / threat_model_.value
     model_path = model_dir_ / f'{model_name}.pt'
@@ -134,7 +140,8 @@ def load_model(model_name: str,
 
     if models[model_name]['gdrive_id'] is None:
         raise ValueError(
-            f"Model `{model_name}` nor {timm_model_name} aren't a timm model and has no `gdrive_id` specified."
+            f"Model `{model_name}` nor {timm_model_name} aren't "
+            "a timm model and has no `gdrive_id` specified."
         )
 
     if not isinstance(models[model_name]['gdrive_id'], list):
@@ -148,7 +155,8 @@ def load_model(model_name: str,
             download_gdrive(models[model_name]['gdrive_id'], model_path)
         checkpoint = torch.load(model_path, map_location=torch.device('cpu'))
 
-        if 'Kireev2021Effectiveness' in model_name or model_name == 'Andriushchenko2020Understanding':
+        if 'Kireev2021Effectiveness' in model_name or \
+            model_name == 'Andriushchenko2020Understanding':
             checkpoint = checkpoint[
                 'last']  # we take the last model (choices: 'last', 'best')
         try:
@@ -176,7 +184,8 @@ def load_model(model_name: str,
 
         return model.eval()
 
-    # If we have an ensemble of models (e.g., Chen2020Adversarial, Diffenderfer2021Winning_LRR_CARD_Deck)
+    # If we have an ensemble of models 
+    # (e.g., Chen2020Adversarial, Diffenderfer2021Winning_LRR_CARD_Deck)
     else:
         model = models[model_name]['model']()
         if not os.path.exists(model_dir_):
@@ -184,8 +193,9 @@ def load_model(model_name: str,
         for i, gid in enumerate(models[model_name]['gdrive_id']):
             if not os.path.isfile('{}_m{}.pt'.format(model_path, i)):
                 download_gdrive(gid, '{}_m{}.pt'.format(model_path, i))
-            checkpoint = torch.load('{}_m{}.pt'.format(model_path, i),
-                                    map_location=torch.device('cpu'))
+            checkpoint = torch.load(
+                '{}_m{}.pt'.format(model_path, i), map_location=torch.device('cpu')
+            )
             try:
                 state_dict = rm_substr_from_state_dict(
                     checkpoint['state_dict'], 'module.')
@@ -193,28 +203,34 @@ def load_model(model_name: str,
                 state_dict = rm_substr_from_state_dict(checkpoint, 'module.')
 
             if not model_name.startswith('Bai2023Improving'):
-                model.models[i] = _safe_load_state_dict(model.models[i],
-                                                        model_name, state_dict,
-                                                        dataset_)
+                model.models[i] = _safe_load_state_dict(
+                    model.models[i], model_name, state_dict, dataset_
+                )
                 model.models[i].eval()
             else:
                 # TODO: make it cleaner.
                 if i < 2:
                     model.comp_model.models[i] = _safe_load_state_dict(
-                        model.comp_model.models[i], model_name, state_dict, dataset_)
+                        model.comp_model.models[i], model_name, state_dict, dataset_
+                    )
                     model.comp_model.models[i].eval()
                 else:
                     model.comp_model.policy_net = _safe_load_state_dict(
-                        model.comp_model.policy_net, model_name, state_dict['model'], dataset_)
+                        model.comp_model.policy_net, model_name,
+                        state_dict['model'], dataset_
+                    )
                     model.comp_model.bn = _safe_load_state_dict(
-                        model.comp_model.bn, model_name, state_dict['bn'], dataset_)
+                        model.comp_model.bn, model_name, state_dict['bn'], dataset_
+                    )
 
         return model.eval()
 
 
-def _safe_load_state_dict(model: nn.Module, model_name: str,
-                          state_dict: Dict[str, torch.Tensor],
-                          dataset_: BenchmarkDataset) -> nn.Module:
+def _safe_load_state_dict(
+    model: nn.Module, model_name: str, 
+    state_dict: Dict[str, torch.Tensor], dataset_: BenchmarkDataset
+) -> nn.Module:
+
     known_failing_models = {
         "Andriushchenko2020Understanding", "Augustin2020Adversarial",
         "Engstrom2019Robustness", "Pang2020Boosting", "Rice2020Overfitting",
@@ -253,21 +269,19 @@ def _safe_load_state_dict(model: nn.Module, model_name: str,
     return model
 
 
-def clean_accuracy(model: nn.Module,
-                   x: torch.Tensor,
-                   y: torch.Tensor,
-                   batch_size: int = 100,
-                   device: torch.device = None):
+def clean_accuracy(
+    model: nn.Module, x: torch.Tensor, y: torch.Tensor,
+    batch_size: int = 100, device: torch.device = None
+):
     if device is None:
         device = x.device
+
     acc = 0.
     n_batches = math.ceil(x.shape[0] / batch_size)
     with torch.no_grad():
         for counter in range(n_batches):
-            x_curr = x[counter * batch_size:(counter + 1) *
-                       batch_size].to(device)
-            y_curr = y[counter * batch_size:(counter + 1) *
-                       batch_size].to(device)
+            x_curr = x[counter * batch_size:(counter + 1) * batch_size].to(device)
+            y_curr = y[counter * batch_size:(counter + 1) * batch_size].to(device)
 
             output = model(x_curr)
             acc += (output.max(1)[1] == y_curr).float().sum()
@@ -285,9 +299,10 @@ def get_key(x, keys):
 
 
 def list_available_models(
-        dataset: Union[str, BenchmarkDataset] = BenchmarkDataset.cifar_10,
-        threat_model: Union[str, ThreatModel] = ThreatModel.Linf,
-        norm: Optional[str] = None):
+    dataset: Union[str, BenchmarkDataset] = BenchmarkDataset.cifar_10,
+    threat_model: Union[str, ThreatModel] = ThreatModel.Linf,
+    norm: Optional[str] = None
+):
     dataset_: BenchmarkDataset = BenchmarkDataset(dataset)
 
     if norm is None:
@@ -330,7 +345,9 @@ def list_available_models(
 
     json_dicts = sorted(json_dicts, key=lambda d: -get_key(d, acc_field))
     print(
-        '| <sub>#</sub> | <sub>Model ID</sub> | <sub>Paper</sub> | <sub>Clean accuracy</sub> | <sub>Robust accuracy</sub> | <sub>Architecture</sub> | <sub>Venue</sub> |'
+        '| <sub>#</sub> | <sub>Model ID</sub> | <sub>Paper</sub> '
+        '| <sub>Clean accuracy</sub> | <sub>Robust accuracy</sub> '
+        '| <sub>Architecture</sub> | <sub>Venue</sub> |'
     )
     print('|:---:|---|---|:---:|:---:|:---:|:---:|')
     for i, json_dict in enumerate(json_dicts):
@@ -339,23 +356,31 @@ def list_available_models(
                 'architecture'] + ' <br/> (3x ensemble)'
         if json_dict['model_name'] != 'Natural':
             print(
-                '| <sub>**{}**</sub> | <sub><sup>**{}**</sup></sub> | <sub>*[{}]({})*</sub> | <sub>{:.2%}</sub> | <sub>{:.2%}</sub> | <sub>{}</sub> | <sub>{}</sub> |'
-                .format(i + 1, json_dict['model_name'], json_dict['name'],
-                        json_dict['link'], json_dict['clean_acc'],
-                        get_key(json_dict, acc_field),
-                        json_dict['architecture'], json_dict['venue']))
+                f"| <sub>**{i + 1}**</sub> "
+                f"| <sub><sup>**{json_dict['model_name']}**</sup></sub> "
+                f"| <sub>*[{json_dict['name']}]({json_dict['link']})*</sub> "
+                f"| <sub>{json_dict['clean_acc']:.2%}</sub> "
+                f"| <sub>{get_key(json_dict, acc_field):.2%}</sub> "
+                f"| <sub>{json_dict['architecture']}</sub> "
+                f"| <sub>{json_dict['venue']}</sub> |"
+            )
         else:
             print(
-                '| <sub>**{}**</sub> | <sub><sup>**{}**</sup></sub> | <sub>*{}*</sub> | <sub>{:.2%}</sub> | <sub>{:.2%}</sub> | <sub>{}</sub> | <sub>{}</sub> |'
-                .format(i + 1, json_dict['model_name'], json_dict['name'],
-                        json_dict['clean_acc'], get_key(json_dict, acc_field),
-                        json_dict['architecture'], json_dict['venue']))
+                f"| <sub>**{i + 1}**</sub> "
+                f"| <sub><sup>**{json_dict['model_name']}**</sup></sub> "
+                f"| <sub>*{json_dict['name']}*</sub> "
+                f"| <sub>{json_dict['clean_acc']:.2%}</sub> "
+                f"| <sub>{get_key(json_dict, acc_field):.2%}</sub> "
+                f"| <sub>{json_dict['architecture']}</sub> "
+                f"| <sub>{json_dict['venue']}</sub> |"
+            )
 
 
-def _get_bibtex_entry(model_name: str, title: str, authors: str, venue: str,
-                      year: int):
+def _get_bibtex_entry(
+    model_name: str, title: str, authors: str, venue: str, year: int
+):
     authors = authors.replace(', ', ' and ')
-    return (f"@article{{{model_name},\n"
+    return (f"@articl{{{model_name}}},\n"
             f"\ttitle\t= {{{title}}},\n"
             f"\tauthor\t= {{{authors}}},\n"
             f"\tjournal\t= {{{venue}}},\n"
@@ -363,8 +388,9 @@ def _get_bibtex_entry(model_name: str, title: str, authors: str, venue: str,
             "}\n")
 
 
-def get_leaderboard_bibtex(dataset: Union[str, BenchmarkDataset],
-                           threat_model: Union[str, ThreatModel]):
+def get_leaderboard_bibtex(
+    dataset: Union[str, BenchmarkDataset], threat_model: Union[str, ThreatModel]
+):
     dataset_: BenchmarkDataset = BenchmarkDataset(dataset)
     threat_model_: ThreatModel = ThreatModel(threat_model)
 
@@ -380,6 +406,7 @@ def get_leaderboard_bibtex(dataset: Union[str, BenchmarkDataset],
             model_dict = json.load(model_info)
             title = model_dict["name"]
             authors = model_dict["authors"]
+
             full_venue = model_dict["venue"]
             if full_venue == "N/A":
                 continue
@@ -388,8 +415,7 @@ def get_leaderboard_bibtex(dataset: Union[str, BenchmarkDataset],
 
             year = model_dict["venue"].split(" ")[-1]
 
-            bibtex_entry = _get_bibtex_entry(model_name, title, authors, venue,
-                                             year)
+            bibtex_entry = _get_bibtex_entry(model_name, title, authors, venue, year)
             bibtex_entries.add(bibtex_entry)
 
     str_entries = ''
@@ -431,8 +457,8 @@ def get_leaderboard_latex(
         with open(json_path, 'r') as model_info:
             model_dict = json.load(model_info)
 
-        str_curr = '\\citet{{{}}}'.format(model_name) if not model_name in ['Standard', 'Standard_R50'] \
-            else model_name.replace('_', '\\_')
+        str_curr = '\\citet{{{}}}'.format(model_name) if not model_name in \
+            ['Standard', 'Standard_R50'] else model_name.replace('_', '\\_')
 
         for k in l_keys:
             if k == 'external' and not 'external' in model_dict.keys():
@@ -462,10 +488,14 @@ def get_leaderboard_latex(
     return entries
 
 
-def update_json(dataset: BenchmarkDataset, threat_model: ThreatModel,
-                model_name: str, accuracy: float, adv_accuracy: float,
-                eps: Optional[float], extra_metrics: dict = {}) -> None:
-    threat_model_path = threat_model.value if threat_model != ThreatModel.corruptions_3d else 'corruptions'
+def update_json(
+    dataset: BenchmarkDataset, threat_model: ThreatModel,
+    model_name: str, accuracy: float, adv_accuracy: float,
+    eps: Optional[float], extra_metrics: dict = {}
+) -> None:
+
+    threat_model_path = threat_model.value if \
+        threat_model != ThreatModel.corruptions_3d else 'corruptions'
     json_path = Path(
         "model_info"
     ) / dataset.value / threat_model_path / f"{model_name}.json"
@@ -479,21 +509,27 @@ def update_json(dataset: BenchmarkDataset, threat_model: ThreatModel,
     acc_field_kwarg = {acc_field: str(round(adv_accuracy * 100, 2))}
 
     if threat_model == ThreatModel.corruptions:
-        acc_field_kwarg['corruptions_mce'] = str(round(extra_metrics['corruptions_mce'] * 100, 2)) 
+        acc_field_kwarg['corruptions_mce'] = str(
+            round(extra_metrics['corruptions_mce'] * 100, 2)
+        ) 
     if threat_model == ThreatModel.corruptions_3d:
-        acc_field_kwarg['corruptions_mce_3d'] = str(round(extra_metrics['corruptions_mce'] * 100, 2))
+        acc_field_kwarg['corruptions_mce_3d'] = str(
+            round(extra_metrics['corruptions_mce'] * 100, 2)
+        )
 
-    model_info = ModelInfo(dataset=dataset.value,
-                           eps=eps,
-                           clean_acc=str(round(accuracy * 100, 2)),
-                           **acc_field_kwarg)
+    model_info = ModelInfo(
+        dataset=dataset.value, eps=eps,
+        clean_acc=str(round(accuracy * 100, 2)), **acc_field_kwarg
+    )
 
     if os.path.exists(json_path):
         with open(json_path, "r") as f:
             # f = open(json_path, "r")
             existing_json_dict = json.load(f)
             # then update only values which are not None
-            existing_json_dict.update({k: v for k, v in dataclasses.asdict(model_info).items() if v is not None})
+            existing_json_dict.update({
+                k: v for k, v in dataclasses.asdict(model_info).items() if v is not None
+            })
             with open(json_path, "w") as f:
                 f.write(json.dumps(existing_json_dict, indent=2))
     else:
@@ -524,47 +560,46 @@ class ModelInfo:
 
 def parse_args():
     parser = argparse.ArgumentParser()
-    parser.add_argument('--model_name',
-                        type=str,
-                        default='Carmon2019Unlabeled')
-    parser.add_argument('--custom_checkpoint',
-                        type=str,
-                        default="",
-                        help='Path to custom checkpoint')
-    parser.add_argument('--threat_model',
-                        type=str,
-                        default='Linf',
-                        choices=[x.value for x in ThreatModel])
-    parser.add_argument('--dataset',
-                        type=str,
-                        default='cifar10',
-                        choices=[x.value for x in BenchmarkDataset])
+    parser.add_argument(
+        '--model_name', type=str, default='Carmon2019Unlabeled'
+    )
+    parser.add_argument(
+        '--custom_checkpoint', type=str, default="",
+        help='Path to custom checkpoint'
+    )
+    parser.add_argument(
+        '--threat_model', type=str, default='Linf',
+        choices=[x.value for x in ThreatModel]
+    )
+    parser.add_argument(
+        '--dataset', type=str, default='cifar10',
+        choices=[x.value for x in BenchmarkDataset]
+    )
     parser.add_argument('--eps', type=float, default=8 / 255)
-    parser.add_argument('--n_ex',
-                        type=int,
-                        default=100,
-                        help='number of examples to evaluate on')
-    parser.add_argument('--batch_size',
-                        type=int,
-                        default=500,
-                        help='batch size for evaluation')
-    parser.add_argument('--data_dir',
-                        type=str,
-                        default='./data',
-                        help='where to store downloaded datasets')
-    parser.add_argument('--corruptions_data_dir',
-                        type=str,
-                        default='',
-                        help='where the corrupted data are stored')
-    parser.add_argument('--model_dir',
-                        type=str,
-                        default='./models',
-                        help='where to store downloaded models')
+    parser.add_argument(
+        '--n_ex', type=int, default=100, help='number of examples to evaluate on'
+    )
+    parser.add_argument(
+        '--batch_size', type=int, default=500, help='batch size for evaluation'
+    )
+    parser.add_argument(
+        '--data_dir', type=str, default='./data',
+        help='where to store downloaded datasets'
+    )
+    parser.add_argument(
+        '--corruptions_data_dir', type=str, default='',
+        help='where the corrupted data are stored'
+    )
+    parser.add_argument(
+        '--model_dir', type=str, default='./models',
+        help='where to store downloaded models'
+    )
     parser.add_argument('--seed', type=int, default=0, help='random seed')
-    parser.add_argument('--device',
-                        type=str,
-                        default='cuda:0',
-                        help='device to use for computations')
+    parser.add_argument(
+        '--device', type=str, default='cuda:0',
+        help='device to use for computations'
+    )
     parser.add_argument('--to_disk', type=bool, default=True)
+
     args = parser.parse_args()
     return args

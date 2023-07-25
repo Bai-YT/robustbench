@@ -148,10 +148,9 @@ def benchmark(
 
 
 def corruptions_evaluation(
-    batch_size: int, data_dir: str,
-    dataset: BenchmarkDataset, threat_model: ThreatModel, 
-    device: torch.device, model: nn.Module, n_examples: int, 
-    to_disk: bool, prepr: str, model_name: Optional[str]
+    batch_size: int, data_dir: str, dataset: BenchmarkDataset,
+    threat_model: ThreatModel, device: torch.device, model: nn.Module,
+    n_examples: int, to_disk: bool, prepr: str, model_name: Optional[str]
 ) -> float:
 
     if to_disk and model_name is None:
