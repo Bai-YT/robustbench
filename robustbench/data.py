@@ -20,25 +20,21 @@ from robustbench.loaders import CustomImageFolder
 PREPROCESSINGS = {
     'Res256Crop224':
     transforms.Compose([
-        transforms.Resize(256),
-        transforms.CenterCrop(224),
-        transforms.ToTensor()
+        transforms.Resize(256), transforms.CenterCrop(224), transforms.ToTensor()
     ]),
     'Crop288':
-    transforms.Compose([transforms.CenterCrop(288),
-                        transforms.ToTensor()]),
+    transforms.Compose([transforms.CenterCrop(288), transforms.ToTensor()]),
     None:
     transforms.Compose([transforms.ToTensor()]),
     'Res224':
     transforms.Compose([
-        transforms.Resize(224),
-        transforms.ToTensor()
+        transforms.Resize(224), transforms.ToTensor()
     ]),
     'BicubicRes256Crop224':
     transforms.Compose([
         transforms.Resize(
-            256,
-            interpolation=transforms.InterpolationMode("bicubic")),
+            256, interpolation=transforms.InterpolationMode("bicubic")
+        ),
         transforms.CenterCrop(224),
         transforms.ToTensor()
     ])
@@ -56,17 +52,19 @@ def get_timm_model_preprocessing(model_name: str) -> Callable:
     scale_size = int(math.floor(img_size / crop_pct))
     return transforms.Compose([
         transforms.Resize(
-            scale_size,
-            interpolation=transforms.InterpolationMode(interpolation)),
+            scale_size, interpolation=transforms.InterpolationMode(interpolation)
+        ),
         transforms.CenterCrop(img_size),
         transforms.ToTensor()
     ])
 
 
 def get_preprocessing(
-        dataset: BenchmarkDataset, threat_model: ThreatModel,
-        model_name: Optional[str],
-        preprocessing: Optional[Union[str, Callable]]) -> Callable:
+    dataset: BenchmarkDataset, threat_model: ThreatModel,
+    model_name: Optional[str],
+    preprocessing: Optional[Union[str, Callable]]
+) -> Callable:
+
     # If preprocessing is already as a function, then return it
     if isinstance(preprocessing, Callable):
         return preprocessing
@@ -95,13 +93,13 @@ def get_preprocessing(
 
 
 def _load_dataset(
-        dataset: Dataset,
-        n_examples: Optional[int] = None) -> Tuple[torch.Tensor, torch.Tensor]:
+    dataset: Dataset, n_start: Optional[int] = None, n_examples: Optional[int] = None
+) -> Tuple[torch.Tensor, torch.Tensor]:
+
     batch_size = 100
-    test_loader = data.DataLoader(dataset,
-                                  batch_size=batch_size,
-                                  shuffle=False,
-                                  num_workers=0)
+    test_loader = data.DataLoader(
+        dataset, batch_size=batch_size, shuffle=False, num_workers=0
+    )
 
     x_test, y_test = [], []
     for i, (x, y) in enumerate(test_loader):
@@ -113,59 +111,58 @@ def _load_dataset(
     y_test_tensor = torch.cat(y_test)
 
     if n_examples is not None:
-        x_test_tensor = x_test_tensor[:n_examples]
-        y_test_tensor = y_test_tensor[:n_examples]
+        x_test_tensor = x_test_tensor[n_start:n_start+n_examples]
+        y_test_tensor = y_test_tensor[n_start:n_start+n_examples]
 
     return x_test_tensor, y_test_tensor
 
 
 def load_cifar10(
-    n_examples: Optional[int] = None,
-    data_dir: str = './data',
-    transforms_test: Callable = PREPROCESSINGS[None]
+    n_start: Optional[int] = None, n_examples: Optional[int] = None,
+    data_dir: str = './data', transforms_test: Callable = PREPROCESSINGS[None]
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    dataset = datasets.CIFAR10(root=data_dir,
-                               train=False,
-                               transform=transforms_test,
-                               download=True)
-    return _load_dataset(dataset, n_examples)
+
+    dataset = datasets.CIFAR10(
+        root=data_dir, train=False, transform=transforms_test, download=True
+    )
+    return _load_dataset(dataset, n_start, n_examples)
 
 
 def load_cifar100(
-    n_examples: Optional[int] = None,
-    data_dir: str = './data',
-    transforms_test: Callable = PREPROCESSINGS[None]
+    n_start: Optional[int] = None, n_examples: Optional[int] = None,
+    data_dir: str = './data', transforms_test: Callable = PREPROCESSINGS[None]
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    dataset = datasets.CIFAR100(root=data_dir,
-                                train=False,
-                                transform=transforms_test,
-                                download=True)
-    return _load_dataset(dataset, n_examples)
+
+    dataset = datasets.CIFAR100(
+        root=data_dir, train=False, transform=transforms_test, download=True
+    )
+    return _load_dataset(dataset, n_start, n_examples)
 
 
 def load_imagenet(
-    n_examples: Optional[int] = 5000,
-    data_dir: str = './data',
-    transforms_test: Callable = PREPROCESSINGS['Res256Crop224']
+    n_start: Optional[int] = None, n_examples: Optional[int] = None,
+    data_dir: str = './data', transforms_test: Callable = PREPROCESSINGS['Res256Crop224']
 ) -> Tuple[torch.Tensor, torch.Tensor]:
+
     if n_examples > 5000:
         raise ValueError(
-            'The evaluation is currently possible on at most 5000 points-')
+            'The evaluation is currently possible on at most 5000 points-'
+        )
 
     imagenet = CustomImageFolder(data_dir + '/val', transforms_test)
 
-    test_loader = data.DataLoader(imagenet,
-                                  batch_size=n_examples,
-                                  shuffle=False,
-                                  num_workers=4)
+    test_loader = data.DataLoader(
+        imagenet, batch_size=n_examples, shuffle=False, num_workers=4
+    )
 
     x_test, y_test, paths = next(iter(test_loader))
 
     return x_test, y_test
 
 
-CleanDatasetLoader = Callable[[Optional[int], str, Callable],
-                              Tuple[torch.Tensor, torch.Tensor]]
+CleanDatasetLoader = Callable[
+    [Optional[int], str, Callable], Tuple[torch.Tensor, torch.Tensor]
+]
 _clean_dataset_loaders: Dict[BenchmarkDataset, CleanDatasetLoader] = {
     BenchmarkDataset.cifar_10: load_cifar10,
     BenchmarkDataset.cifar_100: load_cifar100,
@@ -173,20 +170,24 @@ _clean_dataset_loaders: Dict[BenchmarkDataset, CleanDatasetLoader] = {
 }
 
 
-def load_clean_dataset(dataset: BenchmarkDataset, n_examples: Optional[int],
-                       data_dir: str,
-                       prepr: Callable) -> Tuple[torch.Tensor, torch.Tensor]:
-    return _clean_dataset_loaders[dataset](n_examples, data_dir, prepr)
+def load_clean_dataset(
+    dataset: BenchmarkDataset, n_start: Optional[int],
+    n_examples: Optional[int], data_dir: str, prepr: Callable
+) -> Tuple[torch.Tensor, torch.Tensor]:
+
+    return _clean_dataset_loaders[dataset](n_start, n_examples, data_dir, prepr)
 
 
-CORRUPTIONS = ("shot_noise", "motion_blur", "snow", "pixelate",
-               "gaussian_noise", "defocus_blur", "brightness", "fog",
-               "zoom_blur", "frost", "glass_blur", "impulse_noise", "contrast",
-               "jpeg_compression", "elastic_transform")
+CORRUPTIONS = (
+    "shot_noise", "motion_blur", "snow", "pixelate", "gaussian_noise", "defocus_blur",
+    "brightness", "fog", "zoom_blur", "frost", "glass_blur", "impulse_noise", "contrast",
+    "jpeg_compression", "elastic_transform"
+)
 
-CORRUPTIONS_3DCC = ('near_focus', 'far_focus', 'bit_error', 'color_quant',
-                    'flash', 'fog_3d', 'h265_abr', 'h265_crf', 'iso_noise',
-                    'low_light', 'xy_motion_blur', 'z_motion_blur')
+CORRUPTIONS_3DCC = (
+    'near_focus', 'far_focus', 'bit_error', 'color_quant', 'flash', 'fog_3d', 'h265_abr',
+    'h265_crf', 'iso_noise', 'low_light', 'xy_motion_blur', 'z_motion_blur'
+)
 
 CORRUPTIONS_DICT: Dict[BenchmarkDataset, Tuple[str, ...]] = {
     BenchmarkDataset.cifar_10: {ThreatModel.corruptions: CORRUPTIONS},
@@ -209,37 +210,31 @@ CORRUPTIONS_DIR_NAMES: Dict[BenchmarkDataset, str] = {
 
 
 def load_cifar10c(
-        n_examples: int,
-        severity: int = 5,
-        data_dir: str = './data',
-        shuffle: bool = False,
-        corruptions: Sequence[str] = CORRUPTIONS,
-        _: Callable = PREPROCESSINGS[None]
+    n_examples: int, severity: int = 5, data_dir: str = './data', shuffle: bool = False,
+    corruptions: Sequence[str] = CORRUPTIONS, _: Callable = PREPROCESSINGS[None]
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    return load_corruptions_cifar(BenchmarkDataset.cifar_10, n_examples,
-                                  severity, data_dir, corruptions, shuffle)
+
+    return load_corruptions_cifar(
+        BenchmarkDataset.cifar_10, n_examples, severity, data_dir, corruptions, shuffle
+    )
 
 
 def load_cifar100c(
-        n_examples: int,
-        severity: int = 5,
-        data_dir: str = './data',
-        shuffle: bool = False,
-        corruptions: Sequence[str] = CORRUPTIONS,
-        _: Callable = PREPROCESSINGS[None]
+    n_examples: int, severity: int = 5, data_dir: str = './data', shuffle: bool = False,
+    corruptions: Sequence[str] = CORRUPTIONS, _: Callable = PREPROCESSINGS[None]
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    return load_corruptions_cifar(BenchmarkDataset.cifar_100, n_examples,
-                                  severity, data_dir, corruptions, shuffle)
+
+    return load_corruptions_cifar(
+        BenchmarkDataset.cifar_100, n_examples, severity, data_dir, corruptions, shuffle
+    )
 
 
 def load_imagenetc(
-    n_examples: Optional[int] = 5000,
-    severity: int = 5,
-    data_dir: str = './data',
-    shuffle: bool = False,
-    corruptions: Sequence[str] = CORRUPTIONS,
+    n_examples: Optional[int] = 5000, severity: int = 5, data_dir: str = './data',
+    shuffle: bool = False, corruptions: Sequence[str] = CORRUPTIONS,
     prepr: Callable = PREPROCESSINGS[None]
 ) -> Tuple[torch.Tensor, torch.Tensor]:
+
     if n_examples > 5000:
         raise ValueError(
             'The evaluation is currently possible on at most 5000 points.')
@@ -247,17 +242,16 @@ def load_imagenetc(
     assert len(
         corruptions
     ) == 1, "so far only one corruption is supported (that's how this function is called in eval.py"
-    # TODO: generalize this (although this would probably require writing a function similar to `load_corruptions_cifar`
-    #  or alternatively creating yet another CustomImageFolder class that fetches images from multiple corruption types
-    #  at once -- perhaps this is a cleaner solution)
+    # TODO: generalize this (although this would probably require writing a function similar to
+    # `load_corruptions_cifar` or alternatively creating yet another CustomImageFolder class that
+    # fetches images from multiple corruption types at once -- perhaps this is a cleaner solution)
 
     data_folder_path = Path(data_dir) / CORRUPTIONS_DIR_NAMES[
         BenchmarkDataset.imagenet][ThreatModel.corruptions] / corruptions[0] / str(severity)
     imagenet = CustomImageFolder(data_folder_path, prepr)
-    test_loader = data.DataLoader(imagenet,
-                                  batch_size=n_examples,
-                                  shuffle=shuffle,
-                                  num_workers=2)
+    test_loader = data.DataLoader(
+        imagenet, batch_size=n_examples, shuffle=shuffle, num_workers=2
+    )
 
     x_test, y_test, paths = next(iter(test_loader))
 
@@ -265,13 +259,11 @@ def load_imagenetc(
 
 
 def load_imagenet3dcc(
-    n_examples: Optional[int] = 5000,
-    severity: int = 5,
-    data_dir: str = './data',
-    shuffle: bool = False,
-    corruptions: Sequence[str] = CORRUPTIONS_3DCC,
+    n_examples: Optional[int] = 5000, severity: int = 5, data_dir: str = './data',
+    shuffle: bool = False, corruptions: Sequence[str] = CORRUPTIONS_3DCC,
     prepr: Callable = PREPROCESSINGS[None]
 ) -> Tuple[torch.Tensor, torch.Tensor]:
+
     if n_examples > 5000:
         raise ValueError(
             'The evaluation is currently possible on at most 5000 points.')
@@ -279,25 +271,25 @@ def load_imagenet3dcc(
     assert len(
         corruptions
     ) == 1, "so far only one corruption is supported (that's how this function is called in eval.py"
-    # TODO: generalize this (although this would probably require writing a function similar to `load_corruptions_cifar`
-    #  or alternatively creating yet another CustomImageFolder class that fetches images from multiple corruption types
-    #  at once -- perhaps this is a cleaner solution)
+    # TODO: generalize this (although this would probably require writing a function similar to 
+    # `load_corruptions_cifar` or alternatively creating yet another CustomImageFolder class that
+    # fetches images from multiple corruption types at once -- perhaps this is a cleaner solution)
 
     data_folder_path = Path(data_dir) / CORRUPTIONS_DIR_NAMES[
         BenchmarkDataset.imagenet][ThreatModel.corruptions_3d] / corruptions[0] / str(severity)
     imagenet = CustomImageFolder(data_folder_path, prepr)
-    test_loader = data.DataLoader(imagenet,
-                                  batch_size=n_examples,
-                                  shuffle=shuffle,
-                                  num_workers=2)
+    test_loader = data.DataLoader(
+        imagenet, batch_size=n_examples, shuffle=shuffle, num_workers=2
+    )
 
     x_test, y_test, paths = next(iter(test_loader))
 
     return x_test, y_test
 
 
-CorruptDatasetLoader = Callable[[int, int, str, bool, Sequence[str], Callable],
-                                Tuple[torch.Tensor, torch.Tensor]]
+CorruptDatasetLoader = Callable[
+    [int, int, str, bool, Sequence[str], Callable], Tuple[torch.Tensor, torch.Tensor]
+]
 CORRUPTION_DATASET_LOADERS: Dict[BenchmarkDataset, CorruptDatasetLoader] = {
     BenchmarkDataset.cifar_10: {ThreatModel.corruptions: load_cifar10c},
     BenchmarkDataset.cifar_100: {ThreatModel.corruptions: load_cifar100c},
@@ -307,12 +299,10 @@ CORRUPTION_DATASET_LOADERS: Dict[BenchmarkDataset, CorruptDatasetLoader] = {
 
 
 def load_corruptions_cifar(
-        dataset: BenchmarkDataset,
-        n_examples: int,
-        severity: int,
-        data_dir: str,
-        corruptions: Sequence[str] = CORRUPTIONS,
-        shuffle: bool = False) -> Tuple[torch.Tensor, torch.Tensor]:
+    dataset: BenchmarkDataset, n_examples: int, severity: int, data_dir: str,
+    corruptions: Sequence[str] = CORRUPTIONS, shuffle: bool = False
+) -> Tuple[torch.Tensor, torch.Tensor]:
+
     assert 1 <= severity <= 5
     n_total_cifar = 10000
 
@@ -337,11 +327,11 @@ def load_corruptions_cifar(
         corruption_file_path = data_root_dir / (corruption + '.npy')
         if not corruption_file_path.is_file():
             raise DownloadError(
-                f"{corruption} file is missing, try to re-download it.")
+                f"{corruption} file is missing, try to re-download it."
+            )
 
         images_all = np.load(corruption_file_path)
-        images = images_all[(severity - 1) * n_total_cifar:severity *
-                            n_total_cifar]
+        images = images_all[(severity - 1) * n_total_cifar:severity * n_total_cifar]
         n_img = int(np.ceil(n_examples / n_pert))
         x_test_list.append(images[:n_img])
         # Duplicate the same labels potentially multiple times
